@@ -1,10 +1,10 @@
 # authaction-apollo-graphql-example
 
-An Apollo GraphQL server demonstrating API authorization using [AuthAction](https://app.authaction.com/) with JWKS-based JWT validation.
+An Apollo GraphQL server demonstrating API authorization using [AuthAction](https://app.authaction.com/) with the `@authaction/node-sdk`.
 
 ## Overview
 
-This application shows how to configure and handle authorization using AuthAction's access tokens in an Apollo GraphQL API. It validates JSON Web Tokens (JWT) signed with RS256 by fetching public keys dynamically from AuthAction's JWKS endpoint. The decoded payload is injected into the Apollo context and protected resolvers enforce authentication via a `requireAuth` helper.
+This application shows how to configure and handle authorization using AuthAction's access tokens in an Apollo GraphQL API. It validates JSON Web Tokens (JWT) using the `@authaction/node-sdk`, which handles JWKS fetching and RS256 validation automatically. The decoded payload is injected into the Apollo context and protected resolvers enforce authentication via a `requireAuth` helper.
 
 ## Prerequisites
 
@@ -95,7 +95,7 @@ This application shows how to configure and handle authorization using AuthActio
 ```
 authaction-apollo-graphql-example/
 ├── src/
-│   ├── auth.js        # JWKS client, verifyToken, buildContext
+│   ├── auth.js        # createVerifier + apolloContext from @authaction/node-sdk
 │   ├── schema.js      # GraphQL type definitions
 │   ├── resolvers.js   # Resolvers with requireAuth helper
 │   └── index.js       # Apollo Server setup
@@ -106,20 +106,11 @@ authaction-apollo-graphql-example/
 
 ## Code Explanation
 
-### `src/auth.js` — JWT Validation
+### `src/auth.js` — JWT Validation and Apollo Context
 
-- **`jwksClient`** — Initialises a `jwks-rsa` client pointed at AuthAction's JWKS
-  endpoint. Keys are cached in-process for 1 hour with automatic rotation
-  handling — when a `kid` is not found the client re-fetches the JWKS.
+- **`createVerifier({ domain, audience })`** — Creates a verifier from `@authaction/node-sdk` using `AUTHACTION_DOMAIN` and `AUTHACTION_AUDIENCE`. The SDK handles JWKS fetching, caching, and RS256 JWT validation internally.
 
-- **`verifyToken(token)`** — Validates the JWT using `jsonwebtoken` with:
-  - Algorithm: `RS256`
-  - Issuer: `https://{AUTHACTION_DOMAIN}`
-  - Audience: `{AUTHACTION_AUDIENCE}`
-
-- **`buildContext({ req })`** — Apollo Server context function. Extracts the
-  `Bearer` token from the `Authorization` header, calls `verifyToken`, and
-  returns `{ user: payload }` on success or `{ user: null }` on failure.
+- **`apolloContext(verifier)`** — Returns an Apollo Server context function from `@authaction/node-sdk/apollo`. It extracts the `Bearer` token from the `Authorization` header, validates it with the verifier, and injects `{ user: payload }` into the context (or `{ user: null }` on failure).
 
 ### `src/resolvers.js` — Resolvers
 
